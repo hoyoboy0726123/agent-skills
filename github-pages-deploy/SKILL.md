@@ -1,83 +1,69 @@
 ---
 name: github-pages-deploy
-description: 部署純前端專案到 GitHub Pages。當用戶提到「部署到 GitHub」、「放到 GitHub Pages」、「發布網站到 GitHub」、「建立 GitHub 倉庫並部署」等關鍵字時使用此技能。
-argument-hint: [專案路徑]
+description: Deploy static frontend projects to GitHub Pages. Use when user mentions "deploy to GitHub", "publish to GitHub Pages", "host on GitHub", or wants to make a static website publicly accessible.
 ---
 
-# GitHub Pages 部署技能
+# GitHub Pages Deployment
 
-將純前端專案部署到 GitHub Pages，讓網站可透過 `https://<username>.github.io/<repo-name>/` 訪問。
+Deploy static frontend projects to GitHub Pages, making them accessible at `https://<username>.github.io/<repo-name>/`.
 
-## 前置條件
+## Prerequisites Check
 
-1. **已安裝 GitHub CLI**
-   ```bash
-   gh --version
-   ```
-   如果未安裝，請先安裝：
-   - Windows: `winget install GitHub.cli`
-   - macOS: `brew install gh`
-   - Linux: `sudo apt install gh`
-
-2. **已登入 GitHub**
-   ```bash
-   gh auth status
-   ```
-   如果未登入，執行：
-   ```bash
-   gh auth login
-   ```
-
-3. **已安裝 Git**
-   ```bash
-   git --version
-   ```
-
-## 執行前必須檢查
-
-### 🔍 判斷是否為純前端專案
-
-在執行部署前，**必須先檢查專案是否適合 GitHub Pages**：
-
-**✅ 適合部署的專案（純前端）：**
-- 根目錄或 `/docs` 有 `index.html`
-- 只包含 HTML、CSS、JavaScript、圖片等靜態資源
-- 靜態網站生成器輸出（如 Hugo、Jekyll、Hexo 的 build 結果）
-- React/Vue/Angular 等框架的 **build 後產物**（`dist/`、`build/`）
-
-**❌ 不適合部署的專案：**
-- 需要後端伺服器（Node.js、Python、PHP、Ruby 等）
-- 有 `server.js`、`app.py`、`main.go` 等後端入口
-- 需要資料庫連線
-- 使用 SSR（Server-Side Rendering）且未導出靜態檔案
-- 只有原始碼沒有 build（如只有 `src/` 沒有 `dist/`）
-
-### 檢查指令
+Before deploying, verify the environment:
 
 ```bash
-# 檢查是否有 index.html
-ls index.html 2>/dev/null || ls docs/index.html 2>/dev/null
+# Check GitHub CLI
+gh --version || echo "ERROR: gh CLI not installed"
 
-# 檢查是否有後端檔案（如果存在則不適合）
-ls server.js app.py main.go requirements.txt package.json 2>/dev/null
+# Check authentication
+gh auth status || echo "ERROR: Not logged in - run: gh auth login"
+
+# Check Git
+git --version || echo "ERROR: Git not installed"
 ```
 
-如果有 `package.json`，檢查是否為純前端：
-```bash
-# 檢查 dependencies 是否有後端框架
-cat package.json | grep -E "(express|fastify|koa|next|nuxt|nest)"
+## Decision Tree
+
+```
+User wants to deploy → Is it a static frontend project?
+    │
+    ├─ Check for index.html
+    │   └─ ls index.html docs/index.html dist/index.html build/index.html 2>/dev/null
+    │
+    ├─ Check for backend files (if found → REJECT)
+    │   └─ ls server.js app.py main.go *.php 2>/dev/null
+    │
+    ├─ Check package.json for backend frameworks (if found → REJECT)
+    │   └─ grep -E "(express|fastify|koa|nest|next|nuxt)" package.json
+    │
+    └─ Result:
+        ├─ Static frontend → Proceed with deployment
+        └─ Has backend → STOP and explain alternatives
 ```
 
-**如果專案不適合 GitHub Pages，請向用戶說明原因並建議其他方案**（如 Vercel、Netlify、Railway、Render 等支援後端的平台）。
+## Deployment Flow
 
-## 部署流程
-
-### 步驟 1：初始化 Git（如果尚未初始化）
+### Step 1: Validate Project
 
 ```bash
-cd <專案路徑>
+cd <project-path>
 
-# 檢查是否已有 git
+# Must have index.html somewhere
+if ! ls index.html docs/index.html dist/index.html build/index.html 2>/dev/null; then
+    echo "ERROR: No index.html found. Not a valid static site."
+    exit 1
+fi
+
+# Must NOT have backend files
+if ls server.js app.py main.go 2>/dev/null; then
+    echo "ERROR: Backend files detected. Use Vercel/Netlify/Railway instead."
+    exit 1
+fi
+```
+
+### Step 2: Initialize Git (if needed)
+
+```bash
 if [ ! -d .git ]; then
     git init
     git add .
@@ -85,146 +71,85 @@ if [ ! -d .git ]; then
 fi
 ```
 
-### 步驟 2：建立 GitHub Repository 並推送
+### Step 3: Create Repository and Push
 
 ```bash
-# 建立公開 repo 並推送（repo 名稱使用資料夾名稱）
+# Create public repo and push in one command
 gh repo create <repo-name> --public --source=. --push
 ```
 
-或者如果 repo 已存在：
+Or if repo already exists:
 ```bash
 git remote add origin https://github.com/<username>/<repo-name>.git
 git branch -M main
 git push -u origin main
 ```
 
-### 步驟 3：開啟 GitHub Pages
+### Step 4: Enable GitHub Pages
 
 ```bash
-# 取得目前登入的用戶名
 GITHUB_USER=$(gh api user -q .login)
 
-# 開啟 GitHub Pages（使用 main branch 根目錄）
+# Enable Pages on main branch, root directory
 gh api repos/$GITHUB_USER/<repo-name>/pages -X POST \
   -H "Accept: application/vnd.github+json" \
   -f source='{"branch":"main","path":"/"}'
 ```
 
-如果要使用 `/docs` 目錄：
+For `/docs` directory:
 ```bash
 gh api repos/$GITHUB_USER/<repo-name>/pages -X POST \
-  -H "Accept: application/vnd.github+json" \
   -f source='{"branch":"main","path":"/docs"}'
 ```
 
-### 步驟 4：確認部署狀態
+### Step 5: Verify Deployment
 
 ```bash
-# 檢查 Pages 狀態
-gh api repos/$GITHUB_USER/<repo-name>/pages
-
-# 取得網站網址
-echo "網站網址: https://$GITHUB_USER.github.io/<repo-name>/"
+# Check Pages status
+gh api repos/$GITHUB_USER/<repo-name>/pages --jq '.html_url'
 ```
 
-## 完整範例
+## Error Handling
 
-### 範例 1：新專案部署
+| Error | Solution |
+|-------|----------|
+| `Pages already enabled` | Use `-X PUT` instead of `-X POST` |
+| `Not authenticated` | Run `gh auth login` |
+| `Repository not found` | Check repo name or create it first |
 
-```bash
-# 1. 進入專案目錄
-cd my-website
+## Response Templates
 
-# 2. 確認有 index.html
-ls index.html
-
-# 3. 初始化並提交
-git init
-git add .
-git commit -m "Initial commit"
-
-# 4. 建立 repo 並推送
-gh repo create my-website --public --source=. --push
-
-# 5. 開啟 GitHub Pages
-GITHUB_USER=$(gh api user -q .login)
-gh api repos/$GITHUB_USER/my-website/pages -X POST \
-  -f source='{"branch":"main","path":"/"}'
-
-# 6. 完成！
-echo "部署完成！網址: https://$GITHUB_USER.github.io/my-website/"
+### Success
 ```
-
-### 範例 2：已有 repo，只需開啟 Pages
-
-```bash
-GITHUB_USER=$(gh api user -q .login)
-REPO_NAME="existing-repo"
-
-gh api repos/$GITHUB_USER/$REPO_NAME/pages -X POST \
-  -f source='{"branch":"main","path":"/"}'
-```
-
-### 範例 3：更新已部署的網站
-
-```bash
-# 只需要 commit 並 push，GitHub 會自動重新部署
-git add .
-git commit -m "更新內容"
-git push origin main
-```
-
-## 常見錯誤處理
-
-### 錯誤：Pages already exists
-```bash
-# Pages 已開啟，可以用 PUT 更新設定
-gh api repos/$GITHUB_USER/$REPO_NAME/pages -X PUT \
-  -f source='{"branch":"main","path":"/"}'
-```
-
-### 錯誤：Not authenticated
-```bash
-# 重新登入
-gh auth login
-```
-
-### 錯誤：Repository not found
-```bash
-# 確認 repo 名稱正確，或先建立 repo
-gh repo create <repo-name> --public
-```
-
-## 回覆用戶的範本
-
-### 成功部署
-```
-✅ 部署成功！
+✅ Deployed successfully!
 
 📦 Repository: https://github.com/<username>/<repo-name>
-🌐 網站網址: https://<username>.github.io/<repo-name>/
+🌐 Live URL: https://<username>.github.io/<repo-name>/
 
-（網站可能需要幾分鐘才能生效）
+(May take 1-2 minutes to go live)
 ```
 
-### 專案不適合 GitHub Pages
+### Rejection (Backend Detected)
 ```
-❌ 這個專案不適合部署到 GitHub Pages
+❌ Cannot deploy to GitHub Pages
 
-原因：[說明原因，如「專案包含後端伺服器 (server.js)」]
+Reason: This project contains backend code (<detected-file>).
+GitHub Pages only supports static frontend sites.
 
-GitHub Pages 只支援純前端靜態網站。
-
-建議替代方案：
-- Vercel (https://vercel.com) - 支援 Node.js、Next.js
-- Netlify (https://netlify.com) - 支援 Serverless Functions
-- Railway (https://railway.app) - 支援各種後端
-- Render (https://render.com) - 支援容器化部署
+Alternatives:
+• Vercel (vercel.com) - Node.js, Next.js, serverless
+• Netlify (netlify.com) - Serverless functions
+• Railway (railway.app) - Full backend support
+• Render (render.com) - Containers, databases
 ```
 
-## 參考資源
+## Updating Existing Site
 
-- [GitHub CLI 官方文件](https://cli.github.com/manual/)
-- [GitHub Pages 官方文件](https://docs.github.com/en/pages)
-- [GitHub REST API - Pages](https://docs.github.com/en/rest/pages)
+For sites already deployed, just push changes:
+
+```bash
+git add .
+git commit -m "Update content"
+git push origin main
+# GitHub automatically redeploys
+```
