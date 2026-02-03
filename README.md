@@ -37,12 +37,23 @@ Copy the skill folder to your agent's skills directory, or provide the `SKILL.md
 
 Skills in this repository require:
 
-| Tool | Installation |
-|------|--------------|
-| Git | `winget install Git.Git` (Windows) / `brew install git` (macOS) |
-| GitHub CLI | `winget install GitHub.cli` (Windows) / `brew install gh` (macOS) |
+### Git
 
-After installing GitHub CLI, authenticate:
+| 平台 | 安裝方式 |
+|------|----------|
+| Windows | [下載安裝檔](https://git-scm.com/download/win) 或 `winget install Git.Git` |
+| macOS | [下載安裝檔](https://git-scm.com/download/mac) 或 `brew install git` |
+| Linux | `sudo apt install git` (Debian/Ubuntu) |
+
+### GitHub CLI
+
+| 平台 | 安裝方式 |
+|------|----------|
+| Windows | [下載 .msi 安裝檔](https://cli.github.com/) 或 `winget install GitHub.cli` |
+| macOS | [下載 .pkg 安裝檔](https://cli.github.com/) 或 `brew install gh` |
+| Linux | [安裝說明](https://github.com/cli/cli/blob/trunk/docs/install_linux.md) |
+
+安裝後執行認證：
 ```bash
 gh auth login
 ```
