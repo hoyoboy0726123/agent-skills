@@ -49,8 +49,8 @@ Skills in this repository require:
 
 | 平台 | 安裝方式 |
 |------|----------|
-| Windows | [下載 .msi 安裝檔](https://cli.github.com/) 或 `winget install GitHub.cli` |
-| macOS | [下載 .pkg 安裝檔](https://cli.github.com/) 或 `brew install gh` |
+| Windows | [下載 .msi 安裝檔](https://github.com/cli/cli/releases/latest/download/gh_2.86.0_windows_amd64.msi) 或 `winget install GitHub.cli` |
+| macOS | [下載 .pkg 安裝檔](https://github.com/cli/cli/releases/latest/download/gh_2.86.0_macOS_universal.pkg) 或 `brew install gh` |
 | Linux | [安裝說明](https://github.com/cli/cli/blob/trunk/docs/install_linux.md) |
 
 安裝後執行認證：
